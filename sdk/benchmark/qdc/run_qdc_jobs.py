@@ -47,15 +47,23 @@ log = logging.getLogger(__name__)
 
 HERE = Path(__file__).parent
 
-AIHUB_BASE = "https://qaihub-public-assets.s3.us-west-2.amazonaws.com/qai-hub-models"
-AIHUB_VERSION = "v0.52.0"
+# release_assets.json is published per model on the qualcomm HuggingFace org;
+# the download_url values inside it point at the qaihub-public-assets S3 bucket.
+HF_BASE = "https://huggingface.co/qualcomm"
+# Default precision for qairt release_assets.json lookups.
+AIHUB_PRECISION = "w4a16"
 # Staged into every artifact and fed to VLM cells; reuses the committed VLM
 # e2e fixture (tests/conftest.py TEST_IMAGE_PATH).
 TEST_IMAGE = HERE.parents[2] / "cli" / "server" / "docs" / "ui" / "favicon-32x32.png"
+# QDC device code -> AI Hub chipset slug (the keys under
+# precisions.<precision>.chipset_assets in release_assets.json).
 CHIPSET = {
+    "QCS8275": "qualcomm-qcs8275",
     "QCS9075M": "qualcomm-qcs9075",
     "SC8380XP": "qualcomm-snapdragon-x-elite",
     "SC8480XP": "qualcomm-snapdragon-x2-elite",
+    "X1P42100": "qualcomm-snapdragon-x-plus-8-core",
+    "SM8650": "qualcomm-snapdragon-8gen3",
     "SM8750": "qualcomm-snapdragon-8-elite",
     "SM8850": "qualcomm-snapdragon-8-elite-gen5",
 }
@@ -71,34 +79,51 @@ def platform_for(device: str) -> str:
     raise SystemExit(f"unknown device chipset: {device}")
 
 
-def _aihub_chipset_supported(aihub_id: str, device: str) -> bool:
-    """Probe AI Hub's release manifest to confirm `aihub_id` advertises an
+def _resolve_aihub_url(m: dict, device: str) -> str | None:
+    """Resolve a qairt genie bundle download URL from a model's
+    release_assets.json, published on the qualcomm HuggingFace org.
+
+    Reads the current schema:
+        precisions.<precision>.chipset_assets.<slug>.genie.download_url
+
+    The returned URL points at the qaihub-public-assets S3 bucket. Used only
+    for the host-side bench report / chipset probe — the device-side mm pull
+    does the actual download via the model's "qualcomm/<id>" alias."""
+    slug = CHIPSET.get(device)
+    if slug is None:
+        return None
+    hf_repo = m.get("hf_repo")
+    if not hf_repo:
+        raise SystemExit(f"{m.get('name')}: missing hf_repo for aihub model")
+    url = f"{HF_BASE}/{hf_repo}/resolve/main/release_assets.json"
+    with urllib.request.urlopen(url) as r:
+        doc = json.load(r)
+    precision = m.get("precision", AIHUB_PRECISION)
+    chipset_assets = (
+        doc.get("precisions", {}).get(precision, {}).get("chipset_assets", {})
+    )
+    asset = chipset_assets.get(slug)
+    if not asset:
+        return None
+    return asset.get("genie", {}).get("download_url")
+
+
+def _aihub_chipset_supported(m: dict, device: str) -> bool:
+    """Probe AI Hub's release manifest to confirm the model advertises an
     asset for `device`'s chipset slug. Cheap (single JSON over HTTPS) and
     keeps us from emitting a row that the device-side mm pull would just
     error on, which is the only behaviour the host can know up front."""
-    slug = CHIPSET.get(device)
-    if slug is None:
+    if CHIPSET.get(device) is None:
         raise SystemExit(f"no chipset slug for {device}")
-    url = f"{AIHUB_BASE}/models/{aihub_id}/releases/{AIHUB_VERSION}/release-assets.json"
-    with urllib.request.urlopen(url) as r:
-        assets = json.load(r).get("assets", [])
-    return any(a.get("chipset") == slug for a in assets)
+    return _resolve_aihub_url(m, device) is not None
 
 
 def resolve_model_url(m: dict, device: str) -> str | None:
     """Best-effort public download URL for the bench report `Build & models`
     block. None when no asset matches (QAIRT bundles on unsupported chipsets).
     Not used for the actual download — the device-side mm pull does that."""
-    if "aihub_id" in m:
-        slug = CHIPSET.get(device)
-        if slug is None:
-            return None
-        url = f"{AIHUB_BASE}/models/{m['aihub_id']}/releases/{AIHUB_VERSION}/release-assets.json"
-        with urllib.request.urlopen(url) as r:
-            assets = json.load(r).get("assets", [])
-        return next(
-            (a["download_url"] for a in assets if a.get("chipset") == slug), None
-        )
+    if m.get("hub") == "aihub":
+        return _resolve_aihub_url(m, device)
     return m.get("url")
 
 
@@ -119,9 +144,7 @@ def model_rows(models: list[dict], device: str) -> list[str]:
     for m in models:
         if "model_id" not in m:
             raise SystemExit(f"{m['name']}: missing model_id in bench-models.json")
-        if m.get("hub") == "aihub" and not _aihub_chipset_supported(
-            m["aihub_id"], device
-        ):
+        if m.get("hub") == "aihub" and not _aihub_chipset_supported(m, device):
             log.warning("no %s asset for %s, skipping", device, m["name"])
             continue
         vlm = "1" if m.get("vlm") else ""

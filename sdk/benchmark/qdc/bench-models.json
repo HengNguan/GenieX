@@ -175,7 +175,9 @@
     "devices": ["npu"],
     "model_id": "qualcomm/qwen3_4b",
     "hub": "aihub",
-    "aihub_id": "qwen3_4b"
+    "aihub_id": "qwen3_4b",
+    "hf_repo": "Qwen3-4B",
+    "precision": "w4a16"
   },
   {
     "name": "Qwen3-4B-Instruct-2507-qairt",
@@ -183,7 +185,9 @@
     "devices": ["npu"],
     "model_id": "qualcomm/qwen3_4b_instruct_2507",
     "hub": "aihub",
-    "aihub_id": "qwen3_4b_instruct_2507"
+    "aihub_id": "qwen3_4b_instruct_2507",
+    "hf_repo": "Qwen3-4B-Instruct-2507",
+    "precision": "w4a16"
   },
   {
     "name": "Qwen2.5-VL-7B-qairt",
@@ -192,6 +196,8 @@
     "model_id": "qualcomm/qwen2_5_vl_7b_instruct",
     "hub": "aihub",
     "aihub_id": "qwen2_5_vl_7b_instruct",
+    "hf_repo": "Qwen2.5-VL-7B-Instruct",
+    "precision": "w4a16",
     "vlm": true,
     "image": true
   }

@@ -32,9 +32,9 @@ import (
 
 // LCOV_EXCL_START
 
-// QuantNA is the precision placeholder the SDK records for non-quantized
+// PrecisionNA is the precision placeholder the SDK records for non-quantized
 // (e.g. QAIRT) models.
-const QuantNA = "N/A"
+const PrecisionNA = "N/A"
 
 // ModelType mirrors geniex_ModelType.
 type ModelType int32
@@ -68,19 +68,19 @@ func ParseModelType(s string) (ModelType, bool) {
 	}
 }
 
-// SplitNameQuant splits "name[:quant]" into (name, quant), upper-casing the
-// quant. A pasted HuggingFace URL prefix is stripped first so its scheme colon
-// isn't mistaken for the quant separator. Bare names are canonicalized by the
-// SDK; this only handles the URL strip + ':' split so callers can pass name
-// and quant to the FFI separately.
-func SplitNameQuant(arg string) (string, string) {
+// SplitNamePrecision splits "name[:precision]" into (name, precision),
+// upper-casing the precision. A pasted HuggingFace URL prefix is stripped first
+// so its scheme colon isn't mistaken for the precision separator. Bare names are
+// canonicalized by the SDK; this only handles the URL strip + ':' split so
+// callers can pass name and precision to the FFI separately.
+func SplitNamePrecision(arg string) (string, string) {
 	arg = strings.TrimPrefix(arg, "https://huggingface.co/")
 	arg = strings.TrimPrefix(arg, "http://huggingface.co/")
-	name, quant, found := strings.Cut(arg, ":")
-	if !found || quant == "" {
+	name, precision, found := strings.Cut(arg, ":")
+	if !found || precision == "" {
 		return name, ""
 	}
-	return name, strings.ToUpper(quant)
+	return name, strings.ToUpper(precision)
 }
 
 // HubSource mirrors geniex_HubSource.
@@ -131,7 +131,7 @@ func ModelDeinit() error {
 // ModelPull sets automatically).
 type ModelPullInput struct {
 	ModelName   string
-	Quant       string
+	Precision   string
 	Hub         HubSource
 	LocalPath   string
 	HfToken     string
@@ -166,7 +166,7 @@ func go_model_progress(files *C.geniex_FileProgress, count C.int32_t, userData u
 // ModelPull downloads a model into the local cache (blocking, resumable).
 func ModelPull(input ModelPullInput) error {
 	cModelName := cStringIfSet(input.ModelName)
-	cQuant := cStringIfSet(input.Quant)
+	cQuant := cStringIfSet(input.Precision)
 	cLocalPath := cStringIfSet(input.LocalPath)
 	cHfToken := cStringIfSet(input.HfToken)
 	cChipset := cStringIfSet(input.Chipset)
@@ -212,7 +212,7 @@ func ModelPull(input ModelPullInput) error {
 type ModelDetail struct {
 	Name       string
 	ModelName  string
-	PluginID   string
+	RuntimeID  string
 	ModelType  ModelType
 	TotalSize  int64
 	Precisions []string
@@ -235,7 +235,7 @@ func ModelListDetailed() ([]ModelDetail, error) {
 		result[i] = ModelDetail{
 			Name:       C.GoString(m.name),
 			ModelName:  C.GoString(m.model_name),
-			PluginID:   C.GoString(m.plugin_id),
+			RuntimeID:  C.GoString(m.plugin_id),
 			ModelType:  ModelType(m.model_type),
 			TotalSize:  int64(m.total_size),
 			Precisions: cCharArrayToSlice(m.precisions, m.precision_count),
@@ -287,7 +287,7 @@ func ModelDetectChipset() (string, error) {
 	return C.GoString(out), nil
 }
 
-// ModelRemove deletes a cached model ("org/repo" or "org/repo:quant").
+// ModelRemove deletes a cached model ("org/repo" or "org/repo:precision").
 func ModelRemove(name string) error {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
@@ -334,11 +334,11 @@ type ModelPaths struct {
 	TokenizerPath string
 	ModelDir      string
 	ModelName     string
-	PluginID      string
+	RuntimeID     string
 	ModelType     ModelType
 }
 
-// ModelGetPaths resolves "org/repo[:quant]" (or alias) to absolute on-disk paths.
+// ModelGetPaths resolves "org/repo[:precision]" (or alias) to absolute on-disk paths.
 func ModelGetPaths(name string) (*ModelPaths, error) {
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
@@ -353,14 +353,14 @@ func ModelGetPaths(name string) (*ModelPaths, error) {
 		TokenizerPath: C.GoString(out.tokenizer_path),
 		ModelDir:      C.GoString(out.model_dir),
 		ModelName:     C.GoString(out.model_name),
-		PluginID:      C.GoString(out.plugin_id),
+		RuntimeID:     C.GoString(out.plugin_id),
 		ModelType:     ModelType(out.model_type),
 	}, nil
 }
 
-// QuantCandidate mirrors geniex_QuantCandidate.
-type QuantCandidate struct {
-	Quant     string
+// PrecisionCandidate mirrors geniex_QuantCandidate.
+type PrecisionCandidate struct {
+	Precision string
 	Size      int64
 	IsDefault bool
 }
@@ -368,13 +368,14 @@ type QuantCandidate struct {
 // ModelQueryResult mirrors geniex_ModelQueryOutput.
 type ModelQueryResult struct {
 	ModelName  string
-	PluginID   string
+	RuntimeID  string
 	ModelType  ModelType
-	Candidates []QuantCandidate
+	Candidates []PrecisionCandidate
 }
 
-// ModelQuery resolves a model's remote candidate quantizations without
-// downloading. Reuses ModelPullInput's fields; OnProgress and Quant are ignored.
+// ModelQuery resolves a model's remote candidate precisions without
+// downloading. Reuses ModelPullInput's fields; OnProgress and Precision are
+// ignored.
 func ModelQuery(input ModelPullInput) (*ModelQueryResult, error) {
 	cModelName := cStringIfSet(input.ModelName)
 	cLocalPath := cStringIfSet(input.LocalPath)
@@ -389,7 +390,7 @@ func ModelQuery(input ModelPullInput) (*ModelQueryResult, error) {
 		cFreeIfSet(unsafe.Pointer(cDisplayName))
 	}()
 
-	// Query reuses the pull input struct; quant / progress / model_type are
+	// Query reuses the pull input struct; precision / progress / model_type are
 	// ignored by the SDK for a plan-only call.
 	in := C.geniex_ModelPullInput{
 		struct_size:  C.uint32_t(C.sizeof_geniex_ModelPullInput),
@@ -410,15 +411,15 @@ func ModelQuery(input ModelPullInput) (*ModelQueryResult, error) {
 
 	result := &ModelQueryResult{
 		ModelName: C.GoString(out.model_name),
-		PluginID:  C.GoString(out.plugin_id),
+		RuntimeID: C.GoString(out.plugin_id),
 		ModelType: ModelType(out.model_type),
 	}
 	if out.candidates != nil && out.candidate_count > 0 {
 		cands := unsafe.Slice(out.candidates, int(out.candidate_count))
-		result.Candidates = make([]QuantCandidate, out.candidate_count)
+		result.Candidates = make([]PrecisionCandidate, out.candidate_count)
 		for i, c := range cands {
-			result.Candidates[i] = QuantCandidate{
-				Quant:     C.GoString(c.quant),
+			result.Candidates[i] = PrecisionCandidate{
+				Precision: C.GoString(c.quant),
 				Size:      int64(c.size),
 				IsDefault: bool(c.is_default),
 			}

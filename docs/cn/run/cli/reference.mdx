@@ -12,8 +12,22 @@ import Feedback from "/snippets/page-feedback.mdx";
 下载模型并存储到本地。
 
 ```powershell
-geniex pull <model-name>
+geniex pull <model-name>[:<precision>]
 ```
+
+| 标志 | 说明 |
+|---|---|
+| `--model-hub` | 模型来源：`aihub` \| `hf` \| `localfs`。省略时自动检测。 |
+| `--local-path` | 本地目录或 AI Hub `.zip` 文件的路径。隐含 `--model-hub localfs`。 |
+| `--model-type` | 模型类型：`llm` \| `vlm`。省略时自动检测。 |
+
+**从本地路径拉取：**
+
+```powershell
+geniex pull local/my-model --local-path /path/to/model-dir
+```
+
+<Note>`pull` 会将文件复制到 GenieX 缓存。拉取成功后可安全删除源文件，避免保留两份副本。</Note>
 
 CLI 会引导你完成设置流程：
 

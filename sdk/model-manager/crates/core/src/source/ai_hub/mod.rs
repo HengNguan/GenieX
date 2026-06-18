@@ -110,6 +110,23 @@ pub async fn list_supported_chipsets(cfg: &AiHubConfig) -> Result<Vec<ChipsetInf
     Ok(chipsets)
 }
 
+/// Detect the host chipset and resolve it to the reference device name AI
+/// Hub displays (e.g. `"Snapdragon X Elite CRD"`), the same name surfaced by
+/// [`list_supported_chipsets`]. Best-effort: returns `None` when the host
+/// cannot be probed, and falls back to the raw detected id when the chipset
+/// catalogue is unavailable or has no entry for it.
+pub async fn detect_host_chipset_reference(cfg: &AiHubConfig) -> Option<String> {
+    let raw = detect::detect_host_chipset()?;
+    let transport: Arc<dyn HttpTransport> = match ReqwestTransport::new() {
+        Ok(t) => Arc::new(t),
+        Err(_) => return Some(raw),
+    };
+    match fetch_platform_info(cfg, &transport).await {
+        Ok(plat) => Some(selector::resolve_chipset_display(&plat, &raw).unwrap_or(raw)),
+        Err(_) => Some(raw),
+    }
+}
+
 pub struct AiHubSource {
     display_name: String,
     model_name: String,

@@ -118,6 +118,21 @@ jobs:
           $Preset = "arm64-windows-llvm-release"
           $BuildDir = "$env:LLAMA_DIR/build-$Preset"
 
+          # Snapshot SDK paths before the vcvars replay. The vcvars bat is
+          # sourced by running `cmd /c "vcvars && set"` and replaying every
+          # variable back into this process. That cmd.exe child does not
+          # inherit variables written to $GITHUB_ENV by prior steps (those
+          # are injected by the runner only into the PowerShell process), so
+          # the replay loop would silently overwrite them with empty strings.
+          # Capturing them here, before the replay, lets us restore them and
+          # pass them explicitly to cmake — the same pattern the geniex
+          # CMakePresets `snapdragon` block uses via $env{...} expansion.
+          $HexagonSdkRoot   = $env:HEXAGON_SDK_ROOT
+          $HexagonToolsRoot = $env:HEXAGON_TOOLS_ROOT
+          $HexagonHtpCert   = $env:HEXAGON_HTP_CERT
+          $OpenclSdkRoot    = $env:OPENCL_SDK_ROOT
+          $WindowsSdkBin    = $env:WINDOWS_SDK_BIN
+
           # Source vcvars into this process so cmake's child processes
           # (clang, ninja, inf2cat.exe, signtool.exe) inherit the
           # Windows SDK PATH/INCLUDE/LIB.
@@ -129,10 +144,15 @@ jobs:
           }
           $env:PATH = "$env:LLVM_BIN;$env:PATH"
 
-          # OpenCL is found via CMAKE_PREFIX_PATH (the Adreno SDK root);
-          # Hexagon/HTP signing pick up HEXAGON_SDK_ROOT / HEXAGON_HTP_CERT
-          # / WINDOWS_SDK_BIN from the environment set above.
-          #
+          # Restore SDK vars that the vcvars replay may have clobbered.
+          $env:HEXAGON_SDK_ROOT   = $HexagonSdkRoot
+          $env:HEXAGON_TOOLS_ROOT = $HexagonToolsRoot
+          $env:HEXAGON_HTP_CERT   = $HexagonHtpCert
+          $env:OPENCL_SDK_ROOT    = $OpenclSdkRoot
+          $env:WINDOWS_SDK_BIN    = $WindowsSdkBin
+
+          # Pass SDK paths explicitly on the cmake command line so they are
+          # baked into the cache and immune to any future env mutation.
           # CMAKE_INSTALL_LIBDIR=bin collapses the install layout into a
           # single folder: executables, the ggml/llama DLLs, and the
           # Hexagon HTP skels + signed .cat (installed via `TYPE LIB`) all
@@ -141,7 +161,9 @@ jobs:
           cmake -S $env:LLAMA_DIR --preset $Preset -B $BuildDir --log-level=VERBOSE `
             -DGGML_HEXAGON=ON `
             -DGGML_OPENCL=ON `
-            -DCMAKE_PREFIX_PATH="$env:OPENCL_SDK_ROOT" `
+            -DHEXAGON_SDK_ROOT="$HexagonSdkRoot" `
+            -DHEXAGON_TOOLS_ROOT="$HexagonToolsRoot" `
+            -DCMAKE_PREFIX_PATH="$OpenclSdkRoot" `
             -DCMAKE_INSTALL_LIBDIR=bin `
             -DCMAKE_C_COMPILER_LAUNCHER=ccache `
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache

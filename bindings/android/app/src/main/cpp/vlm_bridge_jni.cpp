@@ -90,36 +90,6 @@ extern "C" JNIEXPORT jobject JNICALL Java_com_geniex_sdk_jni_Vlm_getCapabilities
     return env->NewObject(cls, ctor, (jboolean)caps.supports_vision, (jboolean)caps.supports_audio);
 }
 
-// JNI: encode
-// extern "C"
-// JNIEXPORT jint JNICALL
-// Java_com_geniex_sdk_jni_Vlm_encode(JNIEnv *env, jobject, jlong handle, jstring text,
-//                                 jintArray outTokens) {
-//    std::string c_text = jstring2str(env, text);
-//    int32_t *tokens = nullptr;
-//    int32_t num_tokens = geniex_vlm_encode(reinterpret_cast<geniex_VLM *>(handle), c_text.c_str(), &tokens);
-//    if (num_tokens > 0 && tokens && outTokens) {
-//        env->SetIntArrayRegion(outTokens, 0, num_tokens, tokens);
-//    }
-//    free(tokens);
-//    return num_tokens;
-//}
-
-// JNI: decode
-// extern "C"
-// JNIEXPORT jstring JNICALL
-// Java_com_geniex_sdk_jni_Vlm_decode(JNIEnv *env, jobject, jlong handle, jintArray tokens,
-//                                 jint length) {
-//    std::vector<int32_t> c_tokens = jintArray2vec(env, tokens);
-//    char *out_text = nullptr;
-//    int32_t ret = geniex_vlm_decode(reinterpret_cast<geniex_VLM *>(handle), c_tokens.data(), length,
-//                                &out_text);
-//    if (ret <= 0 || !out_text) return nullptr;
-//    jstring jresult = env->NewStringUTF(out_text);
-//    free(out_text);
-//    return jresult;
-//}
-
 // JNI: generate
 extern "C" JNIEXPORT jobject JNICALL Java_com_geniex_sdk_jni_Vlm_generate(
     JNIEnv* env, jobject /*thiz*/, jlong handle, jstring prompt, jobject configObj, jobject callback) {
@@ -209,37 +179,6 @@ extern "C" JNIEXPORT jobject JNICALL Java_com_geniex_sdk_jni_Vlm_generate(
         return nullptr;
     }
 }
-
-// JNI: embed
-// extern "C"
-// JNIEXPORT jfloatArray JNICALL
-// Java_com_geniex_sdk_jni_Vlm_embed(JNIEnv *env, jobject, jlong handle, jobjectArray jtexts) {
-//    std::vector<std::string> texts = jstringArray2vec(env, jtexts);
-//    std::vector<const char *> c_texts;
-//    for (auto &s: texts) c_texts.push_back(s.c_str());
-//    float *embeddings = nullptr;
-//    int32_t dim = geniex_vlm_embed(reinterpret_cast<geniex_VLM *>(handle), c_texts.data(), c_texts.size(),
-//                               &embeddings);
-//    if (!embeddings || dim <= 0) return nullptr;
-//    jfloatArray jarr = env->NewFloatArray(dim);
-//    env->SetFloatArrayRegion(jarr, 0, dim, embeddings);
-//    free(embeddings);
-//    return jarr;
-//}
-
-// setSampler
-// extern "C"
-// JNIEXPORT void JNICALL
-// Java_com_geniex_sdk_jni_Vlm_setSampler(JNIEnv *env, jobject, jlong handle, jobject cfgObj) {
-//    geniex_SamplerConfig cfg = extract_sampler_config(env, cfgObj);
-//    geniex_vlm_set_sampler(reinterpret_cast<geniex_VLM *>(handle), &cfg);
-//}
-//
-//// resetSampler
-// extern "C"
-// JNIEXPORT void JNICALL Java_com_geniex_sdk_jni_Vlm_resetSampler(JNIEnv *, jobject, jlong handle) {
-//     geniex_vlm_reset_sampler(reinterpret_cast<geniex_VLM *>(handle));
-// }
 
 extern "C" JNIEXPORT jobject JNICALL Java_com_geniex_sdk_jni_Vlm_applyChatTemplate(
     JNIEnv* env, jobject /*thiz*/, jlong handle, jobjectArray jmessages, jstring jtools, jboolean jEnableThinking) {

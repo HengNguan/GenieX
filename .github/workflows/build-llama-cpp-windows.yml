@@ -159,9 +159,14 @@ jobs:
           cmake --install $BuildDir --prefix "$env:LLAMA_DIR/dist"
           if ($LASTEXITCODE -ne 0) { throw "cmake --install failed: $LASTEXITCODE" }
 
-          # libggml-htp.inf has no install() rule upstream; copy it from the
-          # build tree so the artifact contains the full signing bundle.
-          Copy-Item "$BuildDir/ggml/src/ggml-hexagon/libggml-htp.inf" "$env:LLAMA_DIR/dist/bin/"
+          # Assemble the WIDO signing bundle: 6 skels + .inf + .cat in one folder.
+          # .inf has no upstream install() rule so it is copied from the build tree.
+          $signingDir = "$env:LLAMA_DIR/dist/libggml-htp"
+          New-Item -ItemType Directory -Force -Path $signingDir | Out-Null
+          $hexBuildDir = "$BuildDir/ggml/src/ggml-hexagon"
+          Copy-Item "$hexBuildDir/libggml-htp-v*.so" $signingDir
+          Copy-Item "$hexBuildDir/libggml-htp.inf"   $signingDir
+          Copy-Item "$hexBuildDir/libggml-htp.cat"   $signingDir
 
       - name: ccache stats
         shell: powershell
@@ -171,5 +176,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: llama-cpp-windows-arm64-${{ steps.llama.outputs.sha }}
-          path: ${{ steps.llama.outputs.dir }}/dist/bin/
+          path: |
+            ${{ steps.llama.outputs.dir }}/dist/bin/
+            ${{ steps.llama.outputs.dir }}/dist/libggml-htp/
           retention-days: 7

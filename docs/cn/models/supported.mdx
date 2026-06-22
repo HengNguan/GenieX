@@ -117,17 +117,29 @@ Hugging Face 上的部分模型是**受限模型（gated）**——你需要在 
     访问模型的 Hugging Face 页面（例如 `https://huggingface.co/<org>/<model>`），如有提示请接受许可/协议。
   </Step>
   <Step title="向 GenieX 提供令牌">
-    GenieX 按以下顺序检查令牌来源——选择最方便的方式即可：
+    GenieX 按以下顺序检查令牌来源（使用第一个非空值）：
+
+    1. `GENIEX_HFTOKEN` 环境变量
+    2. `HF_TOKEN` 环境变量
+    3. `~/.cache/huggingface/token` 文件
 
     **方式 A —— 环境变量（推荐）：**
 
     <CodeGroup>
     ```powershell windows
+    # 标准 HF 变量（也适用于其他 HF 工具）
     $env:HF_TOKEN = "hf_..."
+
+    # 或使用 GenieX 专用变量（优先级高于 HF_TOKEN）
+    $env:GENIEX_HFTOKEN = "hf_..."
     ```
 
     ```bash linux
+    # 标准 HF 变量（也适用于其他 HF 工具）
     export HF_TOKEN="hf_..."
+
+    # 或使用 GenieX 专用变量（优先级高于 HF_TOKEN）
+    export GENIEX_HFTOKEN="hf_..."
     ```
     </CodeGroup>
 
@@ -142,7 +154,7 @@ Hugging Face 上的部分模型是**受限模型（gated）**——你需要在 
   </Step>
 </Steps>
 
-<Tip>如果 `HF_TOKEN` 环境变量和 `~/.cache/huggingface/token` 同时存在，环境变量优先。</Tip>
+<Tip>`GENIEX_HFTOKEN` 优先级最高，其次是 `HF_TOKEN`，最后是缓存的令牌文件。如需为 GenieX 使用独立令牌而不影响其他 Hugging Face 工具，请使用 `GENIEX_HFTOKEN`。</Tip>
 
 ## **运行 Hugging Face 上的 GGUF 模型**
 

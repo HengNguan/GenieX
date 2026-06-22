@@ -32,17 +32,29 @@ Some models on Hugging Face are **gated** — you must accept the model's licens
     Visit the model's page on Hugging Face (e.g. `https://huggingface.co/<org>/<model>`) and accept the license/agreement if prompted.
   </Step>
   <Step title="Provide the token to GenieX">
-    GenieX checks the following sources in order — use whichever is most convenient:
+    GenieX checks the following sources in order (first non-empty value wins):
+
+    1. `GENIEX_HFTOKEN` environment variable
+    2. `HF_TOKEN` environment variable
+    3. `~/.cache/huggingface/token` file
 
     **Option A — environment variable (recommended):**
 
     <CodeGroup>
     ```powershell windows
+    # Standard HF variable (works with other HF tools too)
     $env:HF_TOKEN = "hf_..."
+
+    # Or GenieX-specific (takes priority over HF_TOKEN)
+    $env:GENIEX_HFTOKEN = "hf_..."
     ```
 
     ```bash linux
+    # Standard HF variable (works with other HF tools too)
     export HF_TOKEN="hf_..."
+
+    # Or GenieX-specific (takes priority over HF_TOKEN)
+    export GENIEX_HFTOKEN="hf_..."
     ```
     </CodeGroup>
 
@@ -57,7 +69,7 @@ Some models on Hugging Face are **gated** — you must accept the model's licens
   </Step>
 </Steps>
 
-<Tip>If both `HF_TOKEN` and `~/.cache/huggingface/token` exist, the environment variable wins.</Tip>
+<Tip>`GENIEX_HFTOKEN` takes highest priority, then `HF_TOKEN`, then the cached token file. Use `GENIEX_HFTOKEN` if you need a separate token for GenieX without affecting other Hugging Face tools.</Tip>
 
 ## **Run a GGUF model from Hugging Face**
 

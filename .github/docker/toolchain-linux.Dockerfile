@@ -5,7 +5,13 @@
 # This layer bakes in build-essential, ccache, rustup, the aarch64 Rust
 # target, and the cc-rs compatibility symlinks so _build-sdk.yml can skip
 # the per-run apt-get / rustup installation.
-ARG UPSTREAM_TAG=v0.1
+#
+# UPSTREAM_TAG selects the Hexagon SDK / hexagon-clang used to build the
+# HTP DSP kernels (libggml-htp-vNN.so). v0.1 shipped Hexagon SDK 6.4.0.2
+# (tools 19.0.04), which miscompiles the v75 kernel and produces gibberish
+# GGUF output on QCS8275 (Hexagon v75) NPUs. v0.7 (Hexagon SDK 6.6.0.0,
+# tools 19.0.07) builds a correct v75 kernel. Keep this at v0.7+.
+ARG UPSTREAM_TAG=v0.7
 FROM ghcr.io/snapdragon-toolchain/arm64-linux:${UPSTREAM_TAG}
 
 ENV DEBIAN_FRONTEND=noninteractive

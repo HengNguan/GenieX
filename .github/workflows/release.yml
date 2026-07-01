@@ -416,9 +416,11 @@ jobs:
       tag: ${{ needs.resolve-tag.outputs.tag }}
       is_prerelease: ${{ needs.resolve-tag.outputs.is_prerelease == 'true' }}
 
+  # Prerelease (hyphen-bearing) tags go to TestPyPI.
   publish-testpypi:
     name: publish-testpypi
     needs: [resolve-tag, build-python-sdist]
+    if: needs.resolve-tag.outputs.is_prerelease == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -432,6 +434,28 @@ jobs:
         with:
           repository-url: https://test.pypi.org/legacy/
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          packages-dir: dist/
+          skip-existing: true
+          # API-token auth, not Trusted Publishing — attestations are a no-op.
+          attestations: false
+
+  # Stable (bare vX.Y.Z) tags publish to production PyPI.
+  publish-pypi:
+    name: publish-pypi
+    needs: [resolve-tag, build-python-sdist]
+    if: needs.resolve-tag.outputs.is_prerelease != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: python-sdist
+          path: dist/
+
+      - name: Publish sdist to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.14.0
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
           packages-dir: dist/
           skip-existing: true
           # API-token auth, not Trusted Publishing — attestations are a no-op.
@@ -545,5 +569,4 @@ jobs:
           [ "$http_code" = "201" ] || { echo "::error::Upload failed (HTTP ${http_code})"; exit 1; }
           echo "::notice::Deployment uploaded. Validate + click Publish at https://central.sonatype.com/publishing/deployments"
 
-  # TODO: production PyPI publish for stable tags (needs Trusted Publishing).
   # TODO: winget manifest submission for the Windows installer.

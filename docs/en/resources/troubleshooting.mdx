@@ -116,6 +116,20 @@ import Feedback from "/snippets/page-feedback.mdx";
   <Accordion title="Container loads model but inference fails with `Failed to create device: 14001`">
     The container can't reach the NPU. Make sure your `docker run` includes `--privileged` and the `/usr/lib` mount, and that the host's Qualcomm driver packages (`qcom-adreno1`, `qcom-fastrpc1`) are installed — see the missing-libraries entry above.
   </Accordion>
+
+  <Accordion title="`--compute npu` fails with `SDKError(Invalid input parameters or handle)` / `Device 'HTP0' not found`">
+    The llama.cpp Hexagon backend `dlopen`s the **unversioned** `libcdsprpc.so`, but `qcom-fastrpc1` only ships `libcdsprpc.so.1`. On bare metal `install.sh` creates the symlink; if you deployed the release tarball directly (no `install.sh`), create it yourself:
+
+    ```bash bash
+    sudo ln -sf /usr/lib/aarch64-linux-gnu/libcdsprpc.so.1 /usr/lib/aarch64-linux-gnu/libcdsprpc.so
+    sudo ln -sf /usr/lib/aarch64-linux-gnu/libadsprpc.so.1 /usr/lib/aarch64-linux-gnu/libadsprpc.so
+    sudo ldconfig
+    ```
+  </Accordion>
+
+  <Accordion title="`--compute hybrid` runs but at CPU speed (silent NPU fallback)">
+    If the Hexagon driver can't load (see the entry above), `hybrid` still produces correct output — it just runs entirely on CPU, so the failure is silent. Confirm the NPU is actually engaged by running with `GGML_HEX_VERBOSE=1`; you should see `Hexagon Arch version vNN` and a `libggml-htp-vNN.so` session. No such lines means it fell back to CPU.
+  </Accordion>
 </AccordionGroup>
 
 ## **Android**

@@ -5,12 +5,6 @@
 # This layer bakes in build-essential, ccache, rustup, the aarch64 Rust
 # target, and the cc-rs compatibility symlinks so _build-sdk.yml can skip
 # the per-run apt-get / rustup installation.
-#
-# UPSTREAM_TAG selects the Hexagon SDK / hexagon-clang used to build the
-# HTP DSP kernels (libggml-htp-vNN.so). v0.1 shipped Hexagon SDK 6.4.0.2
-# (tools 19.0.04), which miscompiles the v75 kernel and produces gibberish
-# GGUF output on QCS8275 (Hexagon v75) NPUs. v0.7 (Hexagon SDK 6.6.0.0,
-# tools 19.0.07) builds a correct v75 kernel. Keep this at v0.7+.
 ARG UPSTREAM_TAG=v0.7
 FROM ghcr.io/snapdragon-toolchain/arm64-linux:${UPSTREAM_TAG}
 
@@ -18,18 +12,18 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        build-essential \
-        ccache \
-        make \
-        ca-certificates \
+    build-essential \
+    ccache \
+    make \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # gcc-13 cross: base image's gcc-14 emits CXXABI_1.3.15 which Qualcomm
 # Linux on-device libstdc++ 6.0.32 lacks. See #458.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        gcc-13-aarch64-linux-gnu \
-        g++-13-aarch64-linux-gnu \
+    gcc-13-aarch64-linux-gnu \
+    g++-13-aarch64-linux-gnu \
     && rm -rf /var/lib/apt/lists/*
 
 ENV RUSTUP_HOME=/opt/rust/rustup \
@@ -37,7 +31,7 @@ ENV RUSTUP_HOME=/opt/rust/rustup \
     PATH=/opt/rust/cargo/bin:$PATH
 
 RUN curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs \
-        | sh -s -- -y --default-toolchain stable --profile minimal \
+    | sh -s -- -y --default-toolchain stable --profile minimal \
     && rustup target add aarch64-unknown-linux-gnu \
     && chmod -R a+rwX /opt/rust
 
@@ -45,6 +39,6 @@ RUN curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs \
 # but Debian ships them as aarch64-linux-gnu-*. Symlink so onig_sys (via
 # tokenizers-cpp) cross-compiles without ToolNotFound.
 RUN for tool in gcc g++ ar; do \
-        ln -sf "/usr/bin/aarch64-linux-gnu-${tool}" \
-               "/usr/local/bin/aarch64-unknown-linux-gnu-${tool}"; \
+    ln -sf "/usr/bin/aarch64-linux-gnu-${tool}" \
+    "/usr/local/bin/aarch64-unknown-linux-gnu-${tool}"; \
     done

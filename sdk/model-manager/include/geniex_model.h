@@ -250,8 +250,8 @@ typedef struct {
      * Returns GENIEX_ERROR_COMMON_INVALID_INPUT if struct_size is zero
      * or not a recognised version.
      */
-    uint32_t         struct_size;
-    const char*      model_name; /**< "org/repo" or short alias                    */
+    uint32_t    struct_size;
+    const char* model_name; /**< "org/repo" or short alias                    */
     /**
      * Quantization hint for HuggingFace / AI Hub pulls (NULL for
      * auto-select). Doubles as the Docker tag or `sha256:<hex>` digest

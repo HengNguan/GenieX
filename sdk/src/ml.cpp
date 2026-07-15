@@ -85,16 +85,16 @@ int32_t geniex_init(void) {
     SetConsoleOutputCP(CP_UTF8);
 #endif
 
-    // Checked before any logging: a logging macro could itself compile to an
-    // armv8.2/LSE instruction, which would SIGILL on the very CPUs this guards.
+    GENIEX_LOG_DEBUG("initializing ml");
+
+    // Bail before scan_plugins loads a backend built with armv8.2 instructions
+    // this CPU can't run, which would otherwise SIGILL deep in inference.
     if (!cpu_features_supported()) {
         GENIEX_LOG_ERROR(
             "this device's CPU lacks features required by geniex; "
             "running would crash with an illegal instruction");
         return GENIEX_ERROR_COMMON_NOT_SUPPORTED;
     }
-
-    GENIEX_LOG_DEBUG("initializing ml");
 
     try {
         Registry::instance().scan_plugins();
